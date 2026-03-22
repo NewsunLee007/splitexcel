@@ -254,6 +254,27 @@
         margin-top:14px;
         flex-wrap:wrap;
       }
+      .modeSwitch{
+        display:flex;
+        gap:8px;
+        margin-bottom:12px;
+      }
+      .modeBtn{
+        appearance:none;
+        border:1px solid rgba(42,55,104,.85);
+        background: rgba(10,18,41,.55);
+        color:rgba(234,240,255,.88);
+        border-radius:10px;
+        padding:8px 12px;
+        cursor:pointer;
+        font-weight:600;
+      }
+      .modeBtn.active{
+        border-color: rgba(120,166,255,.65);
+        background: linear-gradient(180deg, rgba(120,166,255,.24), rgba(120,166,255,.10));
+        color: rgba(234,240,255,.98);
+      }
+      .hidden{display:none !important}
       .status{
         margin-top:14px;
         border:1px solid rgba(42,55,104,.85);
@@ -366,54 +387,102 @@
             <div class="pill">支持 .xlsx / .xlsm / .xls</div>
           </div>
           <div class="bd">
-            <div id="drop" class="drop">
-              <div class="left">
-                <div class="t1" id="fileLine">拖拽 Excel 到这里</div>
-                <div class="t2" id="fileHint">或点击“选择文件”。建议先确认表头行包含“班级”。</div>
+            <div class="modeSwitch">
+              <button id="modeSplitBtn" class="modeBtn active" type="button">拆分模式</button>
+              <button id="modeMergeBtn" class="modeBtn" type="button">合并模式</button>
+            </div>
+
+            <div id="splitArea">
+              <div id="drop" class="drop">
+                <div class="left">
+                  <div class="t1" id="fileLine">拖拽 Excel 到这里</div>
+                  <div class="t2" id="fileHint">或点击“选择文件”。建议先确认表头行包含拆分字段。</div>
+                </div>
+                <div>
+                  <button id="pickBtn" class="btn" type="button">选择文件</button>
+                  <input id="fileInput" type="file" accept=".xlsx,.xlsm,.xls" style="display:none" />
+                </div>
               </div>
-              <div>
-                <button id="pickBtn" class="btn" type="button">选择文件</button>
-                <input id="fileInput" type="file" accept=".xlsx,.xlsm,.xls" style="display:none" />
+
+              <div class="row">
+                <label>
+                  工作表（默认第一个）
+                  <select id="sheetSel" disabled>
+                    <option value="">请先选择文件</option>
+                  </select>
+                </label>
+                <label>
+                  拆分列（可多选）
+                  <select id="splitColsSel" multiple size="5" disabled>
+                    <option value="">请先选择文件</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div id="mergeArea" class="hidden">
+              <div class="drop">
+                <div class="left">
+                  <div class="t1" id="mergeFileLine">选择多个 Excel 进行合并</div>
+                  <div class="t2" id="mergeFileHint">支持一次选择多个文件，按行追加合并。</div>
+                </div>
+                <div>
+                  <button id="pickMergeBtn" class="btn" type="button">选择多个文件</button>
+                  <input id="mergeFileInput" type="file" accept=".xlsx,.xlsm,.xls" multiple style="display:none" />
+                </div>
+              </div>
+              <div class="row">
+                <label>
+                  合并工作表策略
+                  <select id="mergeSheetMode">
+                    <option value="first">每个文件取第一个工作表</option>
+                    <option value="name">按指定工作表名合并</option>
+                  </select>
+                </label>
+                <label>
+                  指定工作表名（可选）
+                  <input id="mergeSheetName" type="text" placeholder="如：Sheet1" />
+                </label>
               </div>
             </div>
 
             <div class="row">
               <label>
-                工作表（默认第一个）
-                <select id="sheetSel" disabled>
-                  <option value="">请先选择文件</option>
-                </select>
-              </label>
-              <label>
-                班级列
-                <select id="classColSel" disabled>
-                  <option value="">请先选择文件</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="row">
-              <label>
-                zip 文件名（可选）
+                拆分 zip 文件名（可选）
                 <input id="zipName" type="text" placeholder="例如：按班级拆分结果.zip" />
               </label>
               <label>
-                每个班级工作表名（可选）
+                输出工作表名（可选）
                 <input id="sheetName" type="text" placeholder="默认：Sheet1" />
               </label>
             </div>
 
-            <div class="toggle">
-              <input id="ffillToggle" type="checkbox" checked />
-              <span>对班级列向下填充（处理合并/空洞）</span>
+            <div id="mergeNameRow" class="row hidden">
+              <label>
+                合并输出文件名（可选）
+                <input id="mergeOutName" type="text" placeholder="例如：合并结果.xlsx" />
+              </label>
+              <label>
+                来源列字段名（可选）
+                <input id="sourceColName" type="text" placeholder="默认：来源文件" />
+              </label>
             </div>
-            <div class="toggle">
+
+            <div id="splitOption1" class="toggle">
+              <input id="ffillToggle" type="checkbox" checked />
+              <span>对拆分列向下填充（处理合并/空洞）</span>
+            </div>
+            <div id="splitOption2" class="toggle">
               <input id="unknownToggle" type="checkbox" checked />
-              <span>空班级归入“未分班”</span>
+              <span>空拆分值归入“未分组”</span>
             </div>
             <div class="toggle">
               <input id="beautifyToggle" type="checkbox" checked />
               <span>导出 Excel 工整化（列宽/表头/边框）</span>
+            </div>
+            <div id="mergeOption" class="toggle hidden">
+              <input id="includeSourceToggle" type="checkbox" checked />
+              <span>合并时新增来源文件列</span>
             </div>
 
             <div class="actions">
@@ -443,7 +512,7 @@
                   <div class="mini" id="kvMeta"></div>
                 </div>
                 <div class="kv">
-                  <div class="k">拆分统计</div>
+                  <div class="k">处理统计</div>
                   <div class="v" id="kvStats">—</div>
                   <div class="mini" id="kvSample"></div>
                 </div>
@@ -477,89 +546,59 @@
 
     <script>
       const $ = (id) => document.getElementById(id)
-
       const drop = $("drop")
       const fileInput = $("fileInput")
       const pickBtn = $("pickBtn")
+      const pickMergeBtn = $("pickMergeBtn")
+      const mergeFileInput = $("mergeFileInput")
       const runBtn = $("runBtn")
       const resetBtn = $("resetBtn")
+      const modeSplitBtn = $("modeSplitBtn")
+      const modeMergeBtn = $("modeMergeBtn")
+      const splitArea = $("splitArea")
+      const mergeArea = $("mergeArea")
+      const mergeNameRow = $("mergeNameRow")
+      const splitOption1 = $("splitOption1")
+      const splitOption2 = $("splitOption2")
+      const mergeOption = $("mergeOption")
       const sheetSel = $("sheetSel")
-      const classColSel = $("classColSel")
+      const splitColsSel = $("splitColsSel")
       const zipName = $("zipName")
+      const mergeOutName = $("mergeOutName")
       const sheetName = $("sheetName")
+      const sourceColName = $("sourceColName")
+      const mergeSheetMode = $("mergeSheetMode")
+      const mergeSheetName = $("mergeSheetName")
       const ffillToggle = $("ffillToggle")
       const unknownToggle = $("unknownToggle")
       const beautifyToggle = $("beautifyToggle")
+      const includeSourceToggle = $("includeSourceToggle")
       const statusText = $("statusText")
       const statusExtra = $("statusExtra")
       const barFill = $("barFill")
       const fileLine = $("fileLine")
       const fileHint = $("fileHint")
+      const mergeFileLine = $("mergeFileLine")
+      const mergeFileHint = $("mergeFileHint")
       const kvFile = $("kvFile")
       const kvMeta = $("kvMeta")
       const kvStats = $("kvStats")
       const kvSample = $("kvSample")
 
+      let mode = "split"
       let workbook = null
-      let fileBuf = null
       let fileObj = null
+      let mergeFiles = []
       let cachedAoa = null
 
       function setProgress(pct){
-        const v = Math.max(0, Math.min(100, pct))
-        barFill.style.width = v.toFixed(1) + "%"
+        barFill.style.width = `${Math.max(0, Math.min(100, pct)).toFixed(1)}%`
       }
 
       function setStatus(text, extraHtml = "", tone = ""){
         statusText.textContent = text
         statusExtra.innerHTML = extraHtml || ""
         statusText.className = tone
-      }
-
-      function toSafeFilename(name, used){
-        let v = name
-        if (typeof v === "number" && Number.isFinite(v) && Math.floor(v) === v) v = String(v)
-        let s = String(v ?? "").trim()
-        if (!s || s.toLowerCase() === "nan" || s.toLowerCase() === "none"){
-          s = unknownToggle.checked ? "未分班" : ""
-        }
-        s = s.replace(/[\/\\:\*\?\"<>\|\r\n\t]/g, "_")
-        s = s.replace(/\s+/g, " ").trim().replace(/\.+$/g, "")
-        if (!s) s = "未分班"
-        if (s.length > 80) s = s.slice(0, 80).trim()
-        const base = s
-        const n = (used.get(base) || 0) + 1
-        used.set(base, n)
-        return n === 1 ? base : `${base} (${n})`
-      }
-
-      function detectClassColumn(headers){
-        const norm = (x) => String(x ?? "").replace(/\s+/g, "").toLowerCase()
-        const candidates = ["班级","班级名称","班别","班級","class","classname"]
-        const ns = headers.map((h) => norm(h))
-        for (const c of candidates){
-          const nc = norm(c)
-          for (let i=0;i<ns.length;i++){
-            if (ns[i] === nc) return i
-          }
-        }
-        for (let i=0;i<ns.length;i++){
-          if (["班级","班級","class"].some((k) => ns[i].includes(k))) return i
-        }
-        return -1
-      }
-
-      function guessHeaderRow(aoa){
-        for (let r=0;r<Math.min(20, aoa.length); r++){
-          const row = aoa[r] || []
-          const filled = row.filter((c) => String(c ?? "").trim() !== "").length
-          if (filled >= 2) return r
-        }
-        return 0
-      }
-
-      function aoaFromSheet(ws){
-        return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false })
       }
 
       function visualLen(v){
@@ -591,229 +630,247 @@
         return widths
       }
 
-      function applyPretty(ws, header, rows){
-        const range = XLSX.utils.decode_range(ws["!ref"] || "A1")
-        const widths = calcColWidths(header, rows, 56)
-        ws["!cols"] = widths.map((w) => ({ wch: w }))
-        ws["!rows"] = [{ hpt: 20 }, ...Array.from({ length: Math.max(0, rows.length) }, () => ({ hpt: 18 }))].slice(0, rows.length + 1)
+      function guessHeaderRow(aoa){
+        for (let r = 0; r < Math.min(20, aoa.length); r++){
+          const row = aoa[r] || []
+          if (row.filter((c) => String(c ?? "").trim() !== "").length >= 2) return r
+        }
+        return 0
+      }
 
-        const thin = { style: "thin" }
-        for (let r = range.s.r; r <= range.e.r; r++){
-          for (let c = range.s.c; c <= range.e.c; c++){
-            const addr = XLSX.utils.encode_cell({ r, c })
-            const cell = ws[addr]
-            if (!cell) continue
-            const isHeader = r === range.s.r
-            cell.s = {
-              font: isHeader ? { bold: true, color: { rgb: "000000" } } : { color: { rgb: "000000" } },
-              fill: isHeader ? { patternType: "solid", fgColor: { rgb: "EEF3FF" } } : undefined,
-              alignment: { vertical: "center", horizontal: "center", wrapText: false },
-              border: { top: thin, bottom: thin, left: thin, right: thin },
-            }
+      function aoaFromSheet(ws){
+        return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false })
+      }
+
+      function detectClassColumn(headers){
+        const norm = (x) => String(x ?? "").replace(/\s+/g, "").toLowerCase()
+        const candidates = ["班级","班级名称","班别","班級","class","classname"]
+        const ns = headers.map((h) => norm(h))
+        for (const c of candidates){
+          const nc = norm(c)
+          for (let i = 0; i < ns.length; i++){
+            if (ns[i] === nc) return i
           }
         }
+        for (let i = 0; i < ns.length; i++){
+          if (["班级","班級","class"].some((k) => ns[i].includes(k))) return i
+        }
+        return -1
+      }
+
+      function normalizePart(v){
+        if (typeof v === "number" && Number.isFinite(v) && Math.floor(v) === v) return String(v)
+        let s = String(v ?? "").trim()
+        if (!s || s.toLowerCase() === "nan" || s.toLowerCase() === "none") s = unknownToggle.checked ? "未分组" : ""
+        return s
+      }
+
+      function toSafeFilename(name, used){
+        let s = String(name ?? "").trim()
+        if (!s) s = "未分组"
+        s = s.replace(/[\/\\:\*\?\"<>\|\r\n\t]/g, "_")
+        s = s.replace(/\s+/g, " ").trim().replace(/\.+$/g, "")
+        if (!s) s = "未分组"
+        if (s.length > 80) s = s.slice(0, 80).trim()
+        const base = s
+        const n = (used.get(base) || 0) + 1
+        used.set(base, n)
+        return n === 1 ? base : `${base} (${n})`
       }
 
       async function buildXlsxWithExcelJS(header, rows, sheetNameValue){
         if (!window.ExcelJS) throw new Error("ExcelJS 未加载，无法导出带样式的 Excel。")
         const wb = new ExcelJS.Workbook()
         const ws = wb.addWorksheet(sheetNameValue || "Sheet1")
-
-        const widths = calcColWidths(header, rows, 56)
-        ws.columns = widths.map((w) => ({ width: w }))
-
-        const headerRow = ws.addRow(header.map((v) => (v === null || v === undefined) ? "" : v))
-        headerRow.height = 20
-
-        for (const r of rows){
-          ws.addRow((r || []).map((v) => (v === null || v === undefined) ? "" : v))
-        }
-
+        ws.columns = calcColWidths(header, rows, 56).map((w) => ({ width: w }))
+        ws.addRow(header.map((v) => v ?? "")).height = 20
+        for (const r of rows) ws.addRow((r || []).map((v) => v ?? ""))
         const thin = { style: "thin" }
         const border = { top: thin, left: thin, bottom: thin, right: thin }
         const align = { vertical: "middle", horizontal: "center", wrapText: false }
-
         ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
           row.height = rowNumber === 1 ? 20 : 18
           row.eachCell({ includeEmpty: true }, (cell) => {
             cell.alignment = align
             cell.border = border
             cell.font = { color: { argb: "FF000000" }, bold: rowNumber === 1 }
-            if (rowNumber === 1){
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF3FF" } }
-            }
+            if (rowNumber === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF3FF" } }
           })
         })
-
         return wb.xlsx.writeBuffer()
       }
 
-      function uiReset(keepFile = false){
+      function getSelectedSplitColumns(){
+        return Array.from(splitColsSel.selectedOptions).map((o) => o.value).filter(Boolean)
+      }
+
+      function updateRunButtonState(){
+        if (mode === "split"){
+          runBtn.disabled = !(workbook && getSelectedSplitColumns().length)
+          runBtn.textContent = "开始拆分并打包"
+        }else{
+          runBtn.disabled = mergeFiles.length < 2
+          runBtn.textContent = "开始合并并下载"
+        }
+      }
+
+      function setMode(nextMode){
+        mode = nextMode
+        const splitMode = mode === "split"
+        modeSplitBtn.classList.toggle("active", splitMode)
+        modeMergeBtn.classList.toggle("active", !splitMode)
+        splitArea.classList.toggle("hidden", !splitMode)
+        mergeArea.classList.toggle("hidden", splitMode)
+        mergeNameRow.classList.toggle("hidden", splitMode)
+        splitOption1.classList.toggle("hidden", !splitMode)
+        splitOption2.classList.toggle("hidden", !splitMode)
+        mergeOption.classList.toggle("hidden", splitMode)
+        setStatus(splitMode ? "拆分模式已就绪" : "合并模式已就绪", "", "")
+        setProgress(0)
+        updateRunButtonState()
+      }
+
+      function uiReset(keepFiles = false){
         workbook = null
-        fileBuf = null
         cachedAoa = null
-        if (!keepFile){
+        if (!keepFiles){
           fileObj = null
+          mergeFiles = []
           fileInput.value = ""
+          mergeFileInput.value = ""
         }
         sheetSel.innerHTML = `<option value="">请先选择文件</option>`
-        classColSel.innerHTML = `<option value="">请先选择文件</option>`
+        splitColsSel.innerHTML = `<option value="">请先选择文件</option>`
         sheetSel.disabled = true
-        classColSel.disabled = true
-        runBtn.disabled = true
+        splitColsSel.disabled = true
         resetBtn.disabled = true
         fileLine.textContent = "拖拽 Excel 到这里"
-        fileHint.textContent = "或点击“选择文件”。建议先确认表头行包含“班级”。"
+        fileHint.textContent = "或点击“选择文件”。建议先确认表头行包含拆分字段。"
+        mergeFileLine.textContent = "选择多个 Excel 进行合并"
+        mergeFileHint.textContent = "支持一次选择多个文件，按行追加合并。"
         kvFile.textContent = "—"
         kvMeta.innerHTML = ""
         kvStats.textContent = "—"
         kvSample.innerHTML = ""
         setProgress(0)
         setStatus("等待选择文件", "", "")
+        updateRunButtonState()
       }
 
-      async function loadFile(f){
+      async function loadSplitFile(f){
         uiReset(true)
         fileObj = f
         fileLine.textContent = f.name
-        fileHint.textContent = `${(f.size/1024/1024).toFixed(2)} MB · 浏览器本地处理`
+        fileHint.textContent = `${(f.size / 1024 / 1024).toFixed(2)} MB · 浏览器本地处理`
         kvFile.textContent = f.name
-        kvMeta.innerHTML = `<span>大小：<b>${(f.size/1024/1024).toFixed(2)} MB</b></span><span>类型：<b>${(f.type || "Excel")}</b></span>`
+        kvMeta.innerHTML = `<span>大小：<b>${(f.size / 1024 / 1024).toFixed(2)} MB</b></span><span>类型：<b>${f.type || "Excel"}</b></span>`
         setStatus("正在读取文件…", "", "")
         setProgress(8)
-
         const ab = await f.arrayBuffer()
-        fileBuf = ab
         setProgress(20)
-        setStatus("正在解析工作簿…", "", "")
-
         workbook = XLSX.read(ab, { type: "array", cellDates: true, cellNF: true, cellText: false })
         const names = workbook.SheetNames || []
         sheetSel.innerHTML = names.map((n, i) => `<option value="${i}">${n}</option>`).join("")
         sheetSel.disabled = false
         sheetSel.value = "0"
         resetBtn.disabled = false
-        setProgress(30)
-        setStatus("已加载工作簿。请选择班级列。", "", "")
         await refreshColumns()
       }
 
       async function refreshColumns(){
         if (!workbook) return
         const idx = parseInt(sheetSel.value || "0", 10)
-        const sheetNameStr = workbook.SheetNames[idx]
-        const ws = workbook.Sheets[sheetNameStr]
-        if (!ws){
-          setStatus("找不到该工作表。", "", "err")
-          return
-        }
+        const ws = workbook.Sheets[workbook.SheetNames[idx]]
+        if (!ws) throw new Error("找不到该工作表")
         cachedAoa = aoaFromSheet(ws)
-        const headerRow = guessHeaderRow(cachedAoa)
-        const headers = (cachedAoa[headerRow] || []).map((x) => String(x ?? "").trim())
-        const uniq = []
-        for (const h of headers){
+        const header = (cachedAoa[guessHeaderRow(cachedAoa)] || []).map((x) => String(x ?? "").trim())
+        const cols = []
+        for (const h of header){
           const v = h || "(空列名)"
-          if (!uniq.includes(v)) uniq.push(v)
+          if (!cols.includes(v)) cols.push(v)
         }
-        classColSel.innerHTML = uniq.map((h) => `<option value="${h}">${h}</option>`).join("")
-        classColSel.disabled = false
-        const autoIdx = detectClassColumn(headers)
-        if (autoIdx >= 0 && headers[autoIdx]){
-          classColSel.value = headers[autoIdx]
+        splitColsSel.innerHTML = cols.map((h) => `<option value="${h}">${h}</option>`).join("")
+        splitColsSel.disabled = false
+        const autoIdx = detectClassColumn(header)
+        if (autoIdx >= 0 && header[autoIdx]){
+          for (const op of splitColsSel.options) op.selected = op.value === header[autoIdx]
+        }else if (splitColsSel.options.length){
+          splitColsSel.options[0].selected = true
         }
-        runBtn.disabled = !classColSel.value
         setProgress(40)
+        setStatus("已加载工作簿。请选择拆分列。", "", "")
+        updateRunButtonState()
       }
 
-      function readRows(){
+      function readSplitRows(){
         const idx = parseInt(sheetSel.value || "0", 10)
-        const sheetNameStr = workbook.SheetNames[idx]
-        const ws = workbook.Sheets[sheetNameStr]
+        const sheetTitle = workbook.SheetNames[idx]
+        const ws = workbook.Sheets[sheetTitle]
         const aoa = cachedAoa || aoaFromSheet(ws)
-        const headerRow = guessHeaderRow(aoa)
-        const header = (aoa[headerRow] || []).map((x) => String(x ?? "").trim())
-        const classHeader = classColSel.value
-        const classIdx = header.findIndex((h) => (h || "(空列名)") === classHeader)
-        if (classIdx < 0) throw new Error("无法定位班级列，请重新选择。")
-        const data = aoa.slice(headerRow + 1).filter((r) => (r || []).some((c) => String(c ?? "").trim() !== ""))
-        return { header, data, classIdx, sheetTitle: sheetNameStr }
+        const header = (aoa[guessHeaderRow(aoa)] || []).map((x) => String(x ?? "").trim())
+        const selectedCols = getSelectedSplitColumns()
+        if (!selectedCols.length) throw new Error("请至少选择一个拆分列。")
+        const splitIdxs = selectedCols.map((col) => header.findIndex((h) => (h || "(空列名)") === col))
+        if (splitIdxs.some((i) => i < 0)) throw new Error("拆分列定位失败，请重新选择。")
+        const data = aoa.slice(guessHeaderRow(aoa) + 1).filter((r) => (r || []).some((c) => String(c ?? "").trim() !== ""))
+        return { header, data, splitIdxs, selectedCols, sheetTitle }
       }
 
-      function ffillClass(data, classIdx){
-        let last = null
+      function ffillByIndexes(data, indexes){
+        const last = new Map()
         for (const row of data){
-          const v = row?.[classIdx]
-          const empty = v === null || v === undefined || String(v).trim() === ""
-          if (!empty) last = v
-          if (empty && last !== null && last !== undefined) row[classIdx] = last
+          for (const idx of indexes){
+            const v = row?.[idx]
+            const empty = v === null || v === undefined || String(v).trim() === ""
+            if (!empty) last.set(idx, v)
+            if (empty && last.has(idx)) row[idx] = last.get(idx)
+          }
         }
       }
 
       async function runSplit(){
-        if (!workbook) return
+        if (!workbook) throw new Error("请先选择要拆分的 Excel。")
         setProgress(45)
-        setStatus("正在准备数据…", "", "")
-        const { header, data, classIdx, sheetTitle } = readRows()
-        if (!header.length) throw new Error("表头为空，无法拆分。")
+        const { header, data, splitIdxs, selectedCols, sheetTitle } = readSplitRows()
         if (!data.length) throw new Error("没有读取到数据行。")
-        if (ffillToggle.checked) ffillClass(data, classIdx)
+        if (ffillToggle.checked) ffillByIndexes(data, splitIdxs)
 
         const groups = new Map()
         for (const row of data){
-          let key = row?.[classIdx]
-          if (typeof key === "number" && Number.isFinite(key) && Math.floor(key) === key) key = String(key)
-          let s = String(key ?? "").trim()
-          if (!s || s.toLowerCase() === "nan" || s.toLowerCase() === "none"){
-            s = unknownToggle.checked ? "未分班" : ""
-          }
-          const k = s || "未分班"
-          if (!groups.has(k)) groups.set(k, [])
-          groups.get(k).push(row)
+          const parts = splitIdxs.map((idx) => normalizePart(row?.[idx]))
+          const key = parts.join("_") || "未分组"
+          if (!groups.has(key)) groups.set(key, [])
+          groups.get(key).push(row)
         }
 
-        const classCount = groups.size
-        const inputRows = data.length
-        kvStats.textContent = `${classCount} 个班级 · ${inputRows} 行数据`
-        kvSample.innerHTML = ""
-        const preview = Array.from(groups.entries()).slice(0, 6)
-        kvSample.innerHTML = preview.map(([k, rows]) => `<span>“${String(k).slice(0,18)}”：<b>${rows.length}</b>行</span>`).join("")
+        kvStats.textContent = `${groups.size} 组 · ${data.length} 行数据`
+        kvSample.innerHTML = Array.from(groups.entries()).slice(0, 6).map(([k, rows]) => `<span>“${String(k).slice(0,18)}”：<b>${rows.length}</b>行</span>`).join("")
 
         const zip = new JSZip()
         const used = new Map()
-        const targetSheetName = (sheetName.value || "Sheet1").trim() || "Sheet1"
-        const zipBase = (zipName.value || "").trim()
-        const finalZipName = zipBase.toLowerCase().endsWith(".zip") ? zipBase : (zipBase ? zipBase + ".zip" : "按班级拆分结果.zip")
+        const outSheet = (sheetName.value || "Sheet1").trim() || "Sheet1"
+        const zipOut = (zipName.value || "").trim()
+        const finalZipName = zipOut.toLowerCase().endsWith(".zip") ? zipOut : (zipOut ? `${zipOut}.zip` : "按字段拆分结果.zip")
 
         let done = 0
-        const total = classCount
-        setStatus("正在生成班级文件…", `<b>工作表：</b>${sheetTitle} · <b>班级数：</b>${classCount}`, "")
+        setStatus("正在生成拆分文件…", `<b>工作表：</b>${sheetTitle} · <b>拆分字段：</b>${selectedCols.join(" + ")}`, "")
         setProgress(50)
-
         for (const [k, rows] of groups.entries()){
-          const fname = toSafeFilename(k, used) + ".xlsx"
-          if (beautifyToggle?.checked){
-            const buf = await buildXlsxWithExcelJS(header, rows, targetSheetName)
-            zip.file(fname, buf)
+          const fname = `${toSafeFilename(k, used)}.xlsx`
+          if (beautifyToggle.checked){
+            zip.file(fname, await buildXlsxWithExcelJS(header, rows, outSheet))
           }else{
             const wb = XLSX.utils.book_new()
-            const aoa = [header, ...rows]
-            const ws = XLSX.utils.aoa_to_sheet(aoa)
-            XLSX.utils.book_append_sheet(wb, ws, targetSheetName)
-            const arr = XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true })
-            zip.file(fname, arr)
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...rows]), outSheet)
+            zip.file(fname, XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true }))
           }
           done += 1
-          const pct = 50 + (done / total) * 40
-          setProgress(pct)
-          setStatus("正在生成班级文件…", `<b>${done}</b> / ${total} · 当前：${fname}`, "")
+          setProgress(50 + (done / groups.size) * 40)
           await new Promise((r) => setTimeout(r, 0))
         }
 
-        setStatus("正在打包 zip…", `<b>文件数：</b>${total} · <b>将下载：</b>${finalZipName}`, "")
-        setProgress(92)
+        setStatus("正在打包 zip…", `<b>文件数：</b>${groups.size} · <b>将下载：</b>${finalZipName}`, "")
         const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } })
-        setProgress(100)
-
         const a = document.createElement("a")
         const url = URL.createObjectURL(blob)
         a.href = url
@@ -822,14 +879,81 @@
         a.click()
         a.remove()
         setTimeout(() => URL.revokeObjectURL(url), 10_000)
-
         const sumRows = Array.from(groups.values()).reduce((acc, r) => acc + r.length, 0)
-        const ok = sumRows === inputRows
-        setStatus(
-          ok ? "完成：已下载 zip" : "完成：已下载 zip（但行数校验未通过）",
-          `<b>校验：</b>原始 ${inputRows} 行 = 拆分汇总 ${sumRows} 行 · ${ok ? "<span class='ok'>一致</span>" : "<span class='warn'>不一致</span>"}`,
-          ok ? "ok" : "warn"
-        )
+        setProgress(100)
+        setStatus("完成：已下载拆分 zip", `<b>校验：</b>原始 ${data.length} 行 = 拆分汇总 ${sumRows} 行`, "ok")
+      }
+
+      async function parseWorkbookFile(f, mergeMode, targetSheet){
+        const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true, cellNF: true, cellText: false })
+        const sheetNameValue = mergeMode === "name" && targetSheet && wb.Sheets[targetSheet] ? targetSheet : wb.SheetNames[0]
+        const ws = wb.Sheets[sheetNameValue]
+        if (!ws) return { file: f.name, sheet: "", header: [], rows: [] }
+        const aoa = aoaFromSheet(ws)
+        const hr = guessHeaderRow(aoa)
+        const header = (aoa[hr] || []).map((x) => String(x ?? "").trim())
+        const rows = aoa.slice(hr + 1).filter((r) => (r || []).some((c) => String(c ?? "").trim() !== ""))
+        return { file: f.name, sheet: sheetNameValue, header, rows }
+      }
+
+      async function runMerge(){
+        if (mergeFiles.length < 2) throw new Error("合并模式至少需要选择 2 个文件。")
+        setProgress(15)
+        const mergeMode = mergeSheetMode.value
+        const targetSheet = (mergeSheetName.value || "").trim()
+        const includeSource = includeSourceToggle.checked
+        const sourceField = (sourceColName.value || "来源文件").trim() || "来源文件"
+        setStatus("正在读取并合并文件…", `<b>文件数：</b>${mergeFiles.length}`, "")
+
+        const parsed = []
+        for (let i = 0; i < mergeFiles.length; i++){
+          parsed.push(await parseWorkbookFile(mergeFiles[i], mergeMode, targetSheet))
+          setProgress(15 + ((i + 1) / mergeFiles.length) * 35)
+          await new Promise((r) => setTimeout(r, 0))
+        }
+
+        const headerSet = new Set()
+        for (const p of parsed) for (const h of p.header) headerSet.add(h || "(空列名)")
+        const mergedHeader = Array.from(headerSet)
+        if (includeSource && !mergedHeader.includes(sourceField)) mergedHeader.push(sourceField)
+
+        const mergedRows = []
+        for (const p of parsed){
+          for (const row of p.rows){
+            const map = {}
+            for (let i = 0; i < p.header.length; i++) map[p.header[i] || "(空列名)"] = row?.[i]
+            if (includeSource) map[sourceField] = p.file
+            mergedRows.push(mergedHeader.map((h) => map[h] ?? ""))
+          }
+        }
+
+        if (!mergedRows.length) throw new Error("合并后没有数据行。请检查文件或工作表设置。")
+        kvFile.textContent = `${mergeFiles.length} 个文件`
+        kvMeta.innerHTML = `<span>工作表策略：<b>${mergeMode === "first" ? "首表" : "指定表名"}</b></span>`
+        kvStats.textContent = `${mergedRows.length} 行 · ${mergedHeader.length} 列`
+        kvSample.innerHTML = parsed.slice(0, 6).map((p) => `<span>${p.file}：<b>${p.rows.length}</b>行</span>`).join("")
+
+        const outSheet = (sheetName.value || "Sheet1").trim() || "Sheet1"
+        const outNameInput = (mergeOutName.value || "").trim()
+        const outName = outNameInput.toLowerCase().endsWith(".xlsx") ? outNameInput : (outNameInput ? `${outNameInput}.xlsx` : "合并结果.xlsx")
+        let blob
+        if (beautifyToggle.checked){
+          blob = new Blob([await buildXlsxWithExcelJS(mergedHeader, mergedRows, outSheet)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        }else{
+          const wb = XLSX.utils.book_new()
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([mergedHeader, ...mergedRows]), outSheet)
+          blob = new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        }
+        setProgress(100)
+        const a = document.createElement("a")
+        const url = URL.createObjectURL(blob)
+        a.href = url
+        a.download = outName
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 10_000)
+        setStatus("完成：已下载合并文件", `<b>输出：</b>${outName} · <b>总行数：</b>${mergedRows.length}`, "ok")
       }
 
       function bindDrop(){
@@ -838,57 +962,66 @@
         ;["dragenter","dragover"].forEach((evt) => drop.addEventListener(evt, () => drop.classList.add("is-drag")))
         ;["dragleave","drop"].forEach((evt) => drop.addEventListener(evt, () => drop.classList.remove("is-drag")))
         drop.addEventListener("drop", async (e) => {
+          if (mode !== "split") return
           const f = e.dataTransfer?.files?.[0]
-          if (!f) return
-          await loadFile(f)
+          if (f) await loadSplitFile(f)
         })
       }
 
+      modeSplitBtn.addEventListener("click", () => setMode("split"))
+      modeMergeBtn.addEventListener("click", () => setMode("merge"))
       pickBtn.addEventListener("click", () => fileInput.click())
+      pickMergeBtn.addEventListener("click", () => mergeFileInput.click())
+
       fileInput.addEventListener("change", async () => {
         const f = fileInput.files?.[0]
-        if (!f) return
-        await loadFile(f)
+        if (f) await loadSplitFile(f)
       })
+
+      mergeFileInput.addEventListener("change", () => {
+        mergeFiles = Array.from(mergeFileInput.files || [])
+        mergeFileLine.textContent = mergeFiles.length ? `已选择 ${mergeFiles.length} 个文件` : "选择多个 Excel 进行合并"
+        mergeFileHint.textContent = mergeFiles.length ? mergeFiles.slice(0, 3).map((f) => f.name).join("、") : "支持一次选择多个文件，按行追加合并。"
+        kvFile.textContent = mergeFiles.length ? `${mergeFiles.length} 个文件` : "—"
+        kvMeta.innerHTML = mergeFiles.length ? `<span>合并输入：<b>${mergeFiles.length}</b>个</span>` : ""
+        resetBtn.disabled = mergeFiles.length === 0 && !workbook
+        updateRunButtonState()
+      })
+
       sheetSel.addEventListener("change", async () => {
         cachedAoa = null
         await refreshColumns()
       })
-      classColSel.addEventListener("change", () => {
-        runBtn.disabled = !classColSel.value
-      })
+      splitColsSel.addEventListener("change", updateRunButtonState)
       resetBtn.addEventListener("click", () => uiReset(false))
+
       runBtn.addEventListener("click", async () => {
         try{
           runBtn.disabled = true
           resetBtn.disabled = true
-          await runSplit()
+          if (mode === "split") await runSplit()
+          else await runMerge()
         }catch(e){
           setStatus("发生错误", `<span class="err">${String(e?.message || e)}</span>`, "err")
           setProgress(0)
         }finally{
-          runBtn.disabled = !classColSel.value
           resetBtn.disabled = false
+          updateRunButtonState()
         }
       })
 
       uiReset(false)
       bindDrop()
+      setMode("split")
       if (!window.XLSX || !window.JSZip || !window.ExcelJS){
         const miss = []
         if (!window.XLSX) miss.push("xlsx")
         if (!window.JSZip) miss.push("jszip")
         if (!window.ExcelJS) miss.push("exceljs")
-        setStatus(
-          "依赖库加载失败",
-          `<span class="err">未能加载：${miss.join("、")}。</span><div style="margin-top:8px">请检查网络，或用本地服务器打开该页面（http://localhost:...），或把依赖库改为本地引用。</div>`,
-          "err"
-        )
+        setStatus("依赖库加载失败", `<span class="err">未能加载：${miss.join("、")}。</span><div style="margin-top:8px">请检查网络，或改为本地依赖引用。</div>`, "err")
       }
       const logoImg = $("logoImg")
-      if (logoImg){
-        logoImg.addEventListener("error", () => logoImg.classList.add("is-hidden"))
-      }
+      if (logoImg) logoImg.addEventListener("error", () => logoImg.classList.add("is-hidden"))
     </script>
   </body>
 </html>
