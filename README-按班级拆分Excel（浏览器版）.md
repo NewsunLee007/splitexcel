@@ -1,6 +1,6 @@
 ## 按班级拆分 Excel（浏览器版）
 
-打开 [按班级拆分Excel（浏览器版）.html](file:///Users/newsunlee/Desktop/AI%20for%20learning/exam%20analyze/按班级拆分Excel（浏览器版）.html)，上传 Excel 后会在浏览器本地完成：
+打开 [index.html](file:///Users/newsunlee/Desktop/AI%20for%20learning/exam%20analyze/index.html)，上传 Excel 后会在浏览器本地完成：
 - 读取第一个工作表（可在页面里切换工作表）
 - 选择“班级”列（支持自动识别/手动选择）
 - 按班级拆成多个 .xlsx
@@ -30,7 +30,7 @@ python3 -m http.server 8000
 ```
 
 浏览器打开：
-- http://localhost:8000/%E6%8C%89%E7%8F%AD%E7%BA%A7%E6%8B%86%E5%88%86Excel%EF%BC%88%E6%B5%8F%E8%A7%88%E5%99%A8%E7%89%88%EF%BC%89.html
+- http://localhost:8000/
 
 ## 说明
 - 默认不会把你的 Excel 上传到服务器；处理在浏览器本地完成。
