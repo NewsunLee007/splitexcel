@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>按班级拆分 Excel（浏览器版）</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <style>
+      :root{
+        --bg0:#070A12;
+        --bg1:#0B1022;
+        --panel:#0E1630cc;
+        --panel2:#0A1229b3;
+        --stroke:#2A3768;
+        --stroke2:#1B254D;
+        --text:#EAF0FF;
+        --muted:#A9B6E6;
+        --muted2:#7F8CC0;
+        --good:#44E8A7;
+        --warn:#FFD36A;
+        --bad:#FF6B85;
+        --accent:#78A6FF;
+        --accent2:#B57BFF;
+        --shadow: 0 24px 70px rgba(0,0,0,.55);
+        --radius: 18px;
+        --radius2: 14px;
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0;
+        color:var(--text);
+        background:
+          radial-gradient(1200px 800px at 12% 18%, rgba(120,166,255,.22), transparent 60%),
+          radial-gradient(900px 700px at 88% 22%, rgba(181,123,255,.20), transparent 55%),
+          radial-gradient(800px 700px at 42% 92%, rgba(68,232,167,.12), transparent 55%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        font-family: "IBM Plex Sans","Noto Sans SC",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+        letter-spacing:.2px;
+        overflow-x:hidden;
+      }
+      .noise{
+        pointer-events:none;
+        position:fixed; inset:0;
+        background:
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E")
+          repeat;
+        mix-blend-mode:overlay;
+        opacity:.07;
+      }
+      .wrap{
+        max-width:1100px;
+        margin:0 auto;
+        padding:32px 18px 44px;
+      }
+      header{
+        display:flex;
+        gap:14px;
+        align-items:flex-start;
+        justify-content:space-between;
+        margin-bottom:18px;
+      }
+      .brandTop{
+        display:flex;
+        align-items:center;
+        gap:12px;
+      }
+      .logo{
+        width:42px;
+        height:42px;
+        border-radius:14px;
+        object-fit:contain;
+        background: rgba(10,18,41,.55);
+        border: 1px solid rgba(42,55,104,.85);
+        padding:6px;
+        box-shadow: 0 18px 44px rgba(0,0,0,.35);
+        flex: 0 0 auto;
+      }
+      .logo.is-hidden{display:none}
+      .brand{
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+      }
+      .title{
+        font-size:22px;
+        font-weight:650;
+        line-height:1.15;
+        display:flex;
+        align-items:center;
+        gap:10px;
+      }
+      .chip{
+        font-size:12px;
+        font-weight:600;
+        color:rgba(234,240,255,.9);
+        padding:6px 10px;
+        border:1px solid rgba(120,166,255,.35);
+        background:linear-gradient(90deg, rgba(120,166,255,.14), rgba(181,123,255,.10));
+        border-radius:999px;
+      }
+      .subtitle{
+        color:var(--muted);
+        font-size:14px;
+        line-height:1.5;
+        max-width:720px;
+      }
+      .grid{
+        display:grid;
+        grid-template-columns: 1.25fr .75fr;
+        gap:14px;
+        align-items:start;
+      }
+      @media (max-width: 980px){
+        .grid{grid-template-columns:1fr}
+      }
+      .card{
+        background:linear-gradient(180deg, rgba(14,22,48,.85), rgba(9,14,31,.78));
+        border:1px solid rgba(42,55,104,.78);
+        border-radius:var(--radius);
+        box-shadow: var(--shadow);
+        overflow:hidden;
+      }
+      .card .hd{
+        padding:16px 16px 0;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+      }
+      .card h2{
+        margin:0;
+        font-size:14px;
+        letter-spacing:.3px;
+        font-weight:650;
+        color:rgba(234,240,255,.92);
+      }
+      .pill{
+        font-size:12px;
+        color:var(--muted2);
+        border:1px solid rgba(42,55,104,.8);
+        padding:6px 10px;
+        border-radius:999px;
+        background:rgba(10,18,41,.6);
+      }
+      .card .bd{padding:16px}
+      .drop{
+        border-radius:var(--radius2);
+        border:1px dashed rgba(120,166,255,.55);
+        background:
+          radial-gradient(700px 240px at 10% 0%, rgba(120,166,255,.12), transparent 55%),
+          radial-gradient(600px 220px at 100% 0%, rgba(181,123,255,.10), transparent 55%),
+          rgba(10,18,41,.55);
+        padding:18px;
+        display:flex;
+        gap:16px;
+        align-items:center;
+        justify-content:space-between;
+        transition: transform .12s ease, border-color .12s ease, background .12s ease;
+        position:relative;
+      }
+      .drop.is-drag{
+        transform: translateY(-1px);
+        border-color: rgba(68,232,167,.75);
+        background:
+          radial-gradient(700px 240px at 10% 0%, rgba(68,232,167,.12), transparent 55%),
+          radial-gradient(600px 220px at 100% 0%, rgba(120,166,255,.10), transparent 55%),
+          rgba(10,18,41,.62);
+      }
+      .drop .left{
+        display:flex; flex-direction:column; gap:6px;
+        min-width: 0;
+      }
+      .drop .t1{
+        font-weight:650;
+        font-size:14px;
+        line-height:1.2;
+      }
+      .drop .t2{
+        color:var(--muted);
+        font-size:12px;
+        line-height:1.4;
+      }
+      .btn{
+        appearance:none;
+        border:1px solid rgba(120,166,255,.55);
+        background: linear-gradient(180deg, rgba(120,166,255,.20), rgba(120,166,255,.08));
+        color:rgba(234,240,255,.95);
+        padding:10px 12px;
+        font-weight:650;
+        border-radius:12px;
+        cursor:pointer;
+        transition: transform .08s ease, filter .12s ease, border-color .12s ease;
+        white-space:nowrap;
+      }
+      .btn:hover{filter:brightness(1.07)}
+      .btn:active{transform: translateY(1px)}
+      .btn.primary{
+        border-color: rgba(68,232,167,.55);
+        background: linear-gradient(180deg, rgba(68,232,167,.22), rgba(68,232,167,.08));
+      }
+      .btn.ghost{
+        border-color: rgba(42,55,104,.85);
+        background: rgba(10,18,41,.55);
+        color: rgba(234,240,255,.9);
+      }
+      .row{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap:12px;
+        margin-top:14px;
+      }
+      @media (max-width: 560px){
+        .row{grid-template-columns:1fr}
+      }
+      label{
+        display:flex;
+        flex-direction:column;
+        gap:7px;
+        font-size:12px;
+        color:var(--muted);
+      }
+      select,input[type="text"]{
+        width:100%;
+        color:rgba(234,240,255,.96);
+        background: rgba(7,10,18,.35);
+        border:1px solid rgba(42,55,104,.85);
+        border-radius:12px;
+        padding:10px 10px;
+        outline:none;
+      }
+      select:focus,input[type="text"]:focus{
+        border-color: rgba(120,166,255,.65);
+        box-shadow: 0 0 0 3px rgba(120,166,255,.12);
+      }
+      .toggle{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        margin-top:12px;
+        color:var(--muted);
+        font-size:12px;
+        user-select:none;
+      }
+      .toggle input{accent-color: var(--accent)}
+      .actions{
+        display:flex;
+        gap:10px;
+        margin-top:14px;
+        flex-wrap:wrap;
+      }
+      .status{
+        margin-top:14px;
+        border:1px solid rgba(42,55,104,.85);
+        background: rgba(10,18,41,.55);
+        border-radius:14px;
+        padding:12px;
+        color: var(--muted);
+        font-size:12px;
+        line-height:1.55;
+      }
+      .status b{color:rgba(234,240,255,.95)}
+      .bar{
+        height:10px;
+        border-radius:999px;
+        background: rgba(7,10,18,.45);
+        border: 1px solid rgba(42,55,104,.75);
+        overflow:hidden;
+        margin-top:10px;
+      }
+      .bar > div{
+        height:100%;
+        width:0%;
+        background: linear-gradient(90deg, rgba(68,232,167,.95), rgba(120,166,255,.95), rgba(181,123,255,.90));
+        border-radius:999px;
+        transition: width .2s ease;
+      }
+      .aside{
+        display:flex;
+        flex-direction:column;
+        gap:14px;
+      }
+      .kvs{
+        display:grid;
+        grid-template-columns: 1fr;
+        gap:10px;
+      }
+      .kv{
+        border:1px solid rgba(42,55,104,.85);
+        background: rgba(10,18,41,.55);
+        border-radius:14px;
+        padding:12px;
+      }
+      .kv .k{
+        font-size:12px;
+        color:var(--muted2);
+      }
+      .kv .v{
+        margin-top:6px;
+        font-weight:650;
+        color:rgba(234,240,255,.95);
+        font-size:13px;
+        line-height:1.35;
+        word-break:break-word;
+      }
+      .mini{
+        margin-top:8px;
+        font-size:12px;
+        color:var(--muted);
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+      }
+      .dot{
+        width:7px; height:7px; border-radius:50%;
+        display:inline-block;
+        background: rgba(120,166,255,.85);
+        box-shadow: 0 0 0 4px rgba(120,166,255,.12);
+        margin-right:8px;
+      }
+      .footer{
+        margin-top:14px;
+        color:rgba(169,182,230,.85);
+        font-size:12px;
+        line-height:1.55;
+      }
+      .link{
+        color: rgba(120,166,255,.95);
+        text-decoration:none;
+        border-bottom:1px solid rgba(120,166,255,.35);
+      }
+      .link:hover{border-bottom-color: rgba(120,166,255,.75)}
+      .err{color: var(--bad)}
+      .ok{color: var(--good)}
+      .warn{color: var(--warn)}
+    </style>
+  </head>
+  <body>
+    <div class="noise"></div>
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <div class="brandTop">
+            <img id="logoImg" class="logo" src="https://p.ipic.vip/lmzked.jpg" alt="logo" />
+            <div class="title">
+              按班级拆分 Excel
+              <span class="chip">浏览器本地处理</span>
+            </div>
+          </div>
+          <div class="subtitle">
+            上传一个 Excel，选择“班级”列，浏览器会自动拆成多个 Excel，并打包成 zip 下载。
+            默认只处理第一个工作表；不会把文件上传到服务器。
+          </div>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="card">
+          <div class="hd">
+            <h2>输入与拆分</h2>
+            <div class="pill">支持 .xlsx / .xlsm / .xls</div>
+          </div>
+          <div class="bd">
+            <div id="drop" class="drop">
+              <div class="left">
+                <div class="t1" id="fileLine">拖拽 Excel 到这里</div>
+                <div class="t2" id="fileHint">或点击“选择文件”。建议先确认表头行包含“班级”。</div>
+              </div>
+              <div>
+                <button id="pickBtn" class="btn" type="button">选择文件</button>
+                <input id="fileInput" type="file" accept=".xlsx,.xlsm,.xls" style="display:none" />
+              </div>
+            </div>
+
+            <div class="row">
+              <label>
+                工作表（默认第一个）
+                <select id="sheetSel" disabled>
+                  <option value="">请先选择文件</option>
+                </select>
+              </label>
+              <label>
+                班级列
+                <select id="classColSel" disabled>
+                  <option value="">请先选择文件</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="row">
+              <label>
+                zip 文件名（可选）
+                <input id="zipName" type="text" placeholder="例如：按班级拆分结果.zip" />
+              </label>
+              <label>
+                每个班级工作表名（可选）
+                <input id="sheetName" type="text" placeholder="默认：Sheet1" />
+              </label>
+            </div>
+
+            <div class="toggle">
+              <input id="ffillToggle" type="checkbox" checked />
+              <span>对班级列向下填充（处理合并/空洞）</span>
+            </div>
+            <div class="toggle">
+              <input id="unknownToggle" type="checkbox" checked />
+              <span>空班级归入“未分班”</span>
+            </div>
+            <div class="toggle">
+              <input id="beautifyToggle" type="checkbox" checked />
+              <span>导出 Excel 工整化（列宽/表头/边框）</span>
+            </div>
+
+            <div class="actions">
+              <button id="runBtn" class="btn primary" type="button" disabled>开始拆分并打包</button>
+              <button id="resetBtn" class="btn ghost" type="button" disabled>重置</button>
+            </div>
+
+            <div id="status" class="status" aria-live="polite">
+              <b>状态：</b><span id="statusText">等待选择文件</span>
+              <div class="bar" aria-hidden="true"><div id="barFill"></div></div>
+              <div id="statusExtra" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="aside">
+          <section class="card">
+            <div class="hd">
+              <h2>结果概览</h2>
+              <div class="pill">自动校验</div>
+            </div>
+            <div class="bd">
+              <div class="kvs">
+                <div class="kv">
+                  <div class="k">输入文件</div>
+                  <div class="v" id="kvFile">—</div>
+                  <div class="mini" id="kvMeta"></div>
+                </div>
+                <div class="kv">
+                  <div class="k">拆分统计</div>
+                  <div class="v" id="kvStats">—</div>
+                  <div class="mini" id="kvSample"></div>
+                </div>
+              </div>
+              <div class="footer">
+                <span class="dot"></span>
+                若你的“班级”列名不标准，先在“班级列”下拉框中手动选择即可。
+                如遇下载后文件名带小数（例如 901.0），请重试本页最新版（已自动去除整数小数点）。
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="hd">
+              <h2>离线提示</h2>
+              <div class="pill">可本地打开</div>
+            </div>
+            <div class="bd">
+              <div class="status" style="margin-top:0">
+                <b>说明：</b>
+                本页依赖 xlsx 与 jszip 两个前端库（默认通过 CDN 加载）。如果你的电脑无法联网，请把本页用本地服务器打开，并把两份库文件改成本地引用。
+                <div style="margin-top:10px;color:rgba(234,240,255,.92)">
+                  你也可以直接把这个 html 发给同事使用。
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+
+      const drop = $("drop")
+      const fileInput = $("fileInput")
+      const pickBtn = $("pickBtn")
+      const runBtn = $("runBtn")
+      const resetBtn = $("resetBtn")
+      const sheetSel = $("sheetSel")
+      const classColSel = $("classColSel")
+      const zipName = $("zipName")
+      const sheetName = $("sheetName")
+      const ffillToggle = $("ffillToggle")
+      const unknownToggle = $("unknownToggle")
+      const beautifyToggle = $("beautifyToggle")
+      const statusText = $("statusText")
+      const statusExtra = $("statusExtra")
+      const barFill = $("barFill")
+      const fileLine = $("fileLine")
+      const fileHint = $("fileHint")
+      const kvFile = $("kvFile")
+      const kvMeta = $("kvMeta")
+      const kvStats = $("kvStats")
+      const kvSample = $("kvSample")
+
+      let workbook = null
+      let fileBuf = null
+      let fileObj = null
+      let cachedAoa = null
+
+      function setProgress(pct){
+        const v = Math.max(0, Math.min(100, pct))
+        barFill.style.width = v.toFixed(1) + "%"
+      }
+
+      function setStatus(text, extraHtml = "", tone = ""){
+        statusText.textContent = text
+        statusExtra.innerHTML = extraHtml || ""
+        statusText.className = tone
+      }
+
+      function toSafeFilename(name, used){
+        let v = name
+        if (typeof v === "number" && Number.isFinite(v) && Math.floor(v) === v) v = String(v)
+        let s = String(v ?? "").trim()
+        if (!s || s.toLowerCase() === "nan" || s.toLowerCase() === "none"){
+          s = unknownToggle.checked ? "未分班" : ""
+        }
+        s = s.replace(/[\/\\:\*\?\"<>\|\r\n\t]/g, "_")
+        s = s.replace(/\s+/g, " ").trim().replace(/\.+$/g, "")
+        if (!s) s = "未分班"
+        if (s.length > 80) s = s.slice(0, 80).trim()
+        const base = s
+        const n = (used.get(base) || 0) + 1
+        used.set(base, n)
+        return n === 1 ? base : `${base} (${n})`
+      }
+
+      function detectClassColumn(headers){
+        const norm = (x) => String(x ?? "").replace(/\s+/g, "").toLowerCase()
+        const candidates = ["班级","班级名称","班别","班級","class","classname"]
+        const ns = headers.map((h) => norm(h))
+        for (const c of candidates){
+          const nc = norm(c)
+          for (let i=0;i<ns.length;i++){
+            if (ns[i] === nc) return i
+          }
+        }
+        for (let i=0;i<ns.length;i++){
+          if (["班级","班級","class"].some((k) => ns[i].includes(k))) return i
+        }
+        return -1
+      }
+
+      function guessHeaderRow(aoa){
+        for (let r=0;r<Math.min(20, aoa.length); r++){
+          const row = aoa[r] || []
+          const filled = row.filter((c) => String(c ?? "").trim() !== "").length
+          if (filled >= 2) return r
+        }
+        return 0
+      }
+
+      function aoaFromSheet(ws){
+        return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false })
+      }
+
+      function visualLen(v){
+        const s = String(v ?? "")
+        let n = 0
+        for (const ch of s){
+          const code = ch.codePointAt(0)
+          n += code > 0x2E80 ? 2 : 1
+        }
+        return n
+      }
+
+      function calcColWidths(header, rows, maxW = 56){
+        const colCount = Math.max(header?.length || 0, ...rows.map((r) => r?.length || 0))
+        const widths = []
+        for (let c = 0; c < colCount; c++){
+          let max = 8
+          const h = header?.[c]
+          if (h !== undefined && h !== null) max = Math.max(max, visualLen(h) + 2)
+          for (let r = 0; r < rows.length; r++){
+            const v = rows[r]?.[c]
+            if (v === null || v === undefined || v === "") continue
+            const w = visualLen(v)
+            if (w > max) max = w
+            if (max >= maxW) break
+          }
+          widths.push(Math.max(8, Math.min(maxW, max + 1)))
+        }
+        return widths
+      }
+
+      function applyPretty(ws, header, rows){
+        const range = XLSX.utils.decode_range(ws["!ref"] || "A1")
+        const widths = calcColWidths(header, rows, 56)
+        ws["!cols"] = widths.map((w) => ({ wch: w }))
+        ws["!rows"] = [{ hpt: 20 }, ...Array.from({ length: Math.max(0, rows.length) }, () => ({ hpt: 18 }))].slice(0, rows.length + 1)
+
+        const thin = { style: "thin" }
+        for (let r = range.s.r; r <= range.e.r; r++){
+          for (let c = range.s.c; c <= range.e.c; c++){
+            const addr = XLSX.utils.encode_cell({ r, c })
+            const cell = ws[addr]
+            if (!cell) continue
+            const isHeader = r === range.s.r
+            cell.s = {
+              font: isHeader ? { bold: true, color: { rgb: "000000" } } : { color: { rgb: "000000" } },
+              fill: isHeader ? { patternType: "solid", fgColor: { rgb: "EEF3FF" } } : undefined,
+              alignment: { vertical: "center", horizontal: "center", wrapText: false },
+              border: { top: thin, bottom: thin, left: thin, right: thin },
+            }
+          }
+        }
+      }
+
+      async function buildXlsxWithExcelJS(header, rows, sheetNameValue){
+        if (!window.ExcelJS) throw new Error("ExcelJS 未加载，无法导出带样式的 Excel。")
+        const wb = new ExcelJS.Workbook()
+        const ws = wb.addWorksheet(sheetNameValue || "Sheet1")
+
+        const widths = calcColWidths(header, rows, 56)
+        ws.columns = widths.map((w) => ({ width: w }))
+
+        const headerRow = ws.addRow(header.map((v) => (v === null || v === undefined) ? "" : v))
+        headerRow.height = 20
+
+        for (const r of rows){
+          ws.addRow((r || []).map((v) => (v === null || v === undefined) ? "" : v))
+        }
+
+        const thin = { style: "thin" }
+        const border = { top: thin, left: thin, bottom: thin, right: thin }
+        const align = { vertical: "middle", horizontal: "center", wrapText: false }
+
+        ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          row.height = rowNumber === 1 ? 20 : 18
+          row.eachCell({ includeEmpty: true }, (cell) => {
+            cell.alignment = align
+            cell.border = border
+            cell.font = { color: { argb: "FF000000" }, bold: rowNumber === 1 }
+            if (rowNumber === 1){
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF3FF" } }
+            }
+          })
+        })
+
+        return wb.xlsx.writeBuffer()
+      }
+
+      function uiReset(keepFile = false){
+        workbook = null
+        fileBuf = null
+        cachedAoa = null
+        if (!keepFile){
+          fileObj = null
+          fileInput.value = ""
+        }
+        sheetSel.innerHTML = `<option value="">请先选择文件</option>`
+        classColSel.innerHTML = `<option value="">请先选择文件</option>`
+        sheetSel.disabled = true
+        classColSel.disabled = true
+        runBtn.disabled = true
+        resetBtn.disabled = true
+        fileLine.textContent = "拖拽 Excel 到这里"
+        fileHint.textContent = "或点击“选择文件”。建议先确认表头行包含“班级”。"
+        kvFile.textContent = "—"
+        kvMeta.innerHTML = ""
+        kvStats.textContent = "—"
+        kvSample.innerHTML = ""
+        setProgress(0)
+        setStatus("等待选择文件", "", "")
+      }
+
+      async function loadFile(f){
+        uiReset(true)
+        fileObj = f
+        fileLine.textContent = f.name
+        fileHint.textContent = `${(f.size/1024/1024).toFixed(2)} MB · 浏览器本地处理`
+        kvFile.textContent = f.name
+        kvMeta.innerHTML = `<span>大小：<b>${(f.size/1024/1024).toFixed(2)} MB</b></span><span>类型：<b>${(f.type || "Excel")}</b></span>`
+        setStatus("正在读取文件…", "", "")
+        setProgress(8)
+
+        const ab = await f.arrayBuffer()
+        fileBuf = ab
+        setProgress(20)
+        setStatus("正在解析工作簿…", "", "")
+
+        workbook = XLSX.read(ab, { type: "array", cellDates: true, cellNF: true, cellText: false })
+        const names = workbook.SheetNames || []
+        sheetSel.innerHTML = names.map((n, i) => `<option value="${i}">${n}</option>`).join("")
+        sheetSel.disabled = false
+        sheetSel.value = "0"
+        resetBtn.disabled = false
+        setProgress(30)
+        setStatus("已加载工作簿。请选择班级列。", "", "")
+        await refreshColumns()
+      }
+
+      async function refreshColumns(){
+        if (!workbook) return
+        const idx = parseInt(sheetSel.value || "0", 10)
+        const sheetNameStr = workbook.SheetNames[idx]
+        const ws = workbook.Sheets[sheetNameStr]
+        if (!ws){
+          setStatus("找不到该工作表。", "", "err")
+          return
+        }
+        cachedAoa = aoaFromSheet(ws)
+        const headerRow = guessHeaderRow(cachedAoa)
+        const headers = (cachedAoa[headerRow] || []).map((x) => String(x ?? "").trim())
+        const uniq = []
+        for (const h of headers){
+          const v = h || "(空列名)"
+          if (!uniq.includes(v)) uniq.push(v)
+        }
+        classColSel.innerHTML = uniq.map((h) => `<option value="${h}">${h}</option>`).join("")
+        classColSel.disabled = false
+        const autoIdx = detectClassColumn(headers)
+        if (autoIdx >= 0 && headers[autoIdx]){
+          classColSel.value = headers[autoIdx]
+        }
+        runBtn.disabled = !classColSel.value
+        setProgress(40)
+      }
+
+      function readRows(){
+        const idx = parseInt(sheetSel.value || "0", 10)
+        const sheetNameStr = workbook.SheetNames[idx]
+        const ws = workbook.Sheets[sheetNameStr]
+        const aoa = cachedAoa || aoaFromSheet(ws)
+        const headerRow = guessHeaderRow(aoa)
+        const header = (aoa[headerRow] || []).map((x) => String(x ?? "").trim())
+        const classHeader = classColSel.value
+        const classIdx = header.findIndex((h) => (h || "(空列名)") === classHeader)
+        if (classIdx < 0) throw new Error("无法定位班级列，请重新选择。")
+        const data = aoa.slice(headerRow + 1).filter((r) => (r || []).some((c) => String(c ?? "").trim() !== ""))
+        return { header, data, classIdx, sheetTitle: sheetNameStr }
+      }
+
+      function ffillClass(data, classIdx){
+        let last = null
+        for (const row of data){
+          const v = row?.[classIdx]
+          const empty = v === null || v === undefined || String(v).trim() === ""
+          if (!empty) last = v
+          if (empty && last !== null && last !== undefined) row[classIdx] = last
+        }
+      }
+
+      async function runSplit(){
+        if (!workbook) return
+        setProgress(45)
+        setStatus("正在准备数据…", "", "")
+        const { header, data, classIdx, sheetTitle } = readRows()
+        if (!header.length) throw new Error("表头为空，无法拆分。")
+        if (!data.length) throw new Error("没有读取到数据行。")
+        if (ffillToggle.checked) ffillClass(data, classIdx)
+
+        const groups = new Map()
+        for (const row of data){
+          let key = row?.[classIdx]
+          if (typeof key === "number" && Number.isFinite(key) && Math.floor(key) === key) key = String(key)
+          let s = String(key ?? "").trim()
+          if (!s || s.toLowerCase() === "nan" || s.toLowerCase() === "none"){
+            s = unknownToggle.checked ? "未分班" : ""
+          }
+          const k = s || "未分班"
+          if (!groups.has(k)) groups.set(k, [])
+          groups.get(k).push(row)
+        }
+
+        const classCount = groups.size
+        const inputRows = data.length
+        kvStats.textContent = `${classCount} 个班级 · ${inputRows} 行数据`
+        kvSample.innerHTML = ""
+        const preview = Array.from(groups.entries()).slice(0, 6)
+        kvSample.innerHTML = preview.map(([k, rows]) => `<span>“${String(k).slice(0,18)}”：<b>${rows.length}</b>行</span>`).join("")
+
+        const zip = new JSZip()
+        const used = new Map()
+        const targetSheetName = (sheetName.value || "Sheet1").trim() || "Sheet1"
+        const zipBase = (zipName.value || "").trim()
+        const finalZipName = zipBase.toLowerCase().endsWith(".zip") ? zipBase : (zipBase ? zipBase + ".zip" : "按班级拆分结果.zip")
+
+        let done = 0
+        const total = classCount
+        setStatus("正在生成班级文件…", `<b>工作表：</b>${sheetTitle} · <b>班级数：</b>${classCount}`, "")
+        setProgress(50)
+
+        for (const [k, rows] of groups.entries()){
+          const fname = toSafeFilename(k, used) + ".xlsx"
+          if (beautifyToggle?.checked){
+            const buf = await buildXlsxWithExcelJS(header, rows, targetSheetName)
+            zip.file(fname, buf)
+          }else{
+            const wb = XLSX.utils.book_new()
+            const aoa = [header, ...rows]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            XLSX.utils.book_append_sheet(wb, ws, targetSheetName)
+            const arr = XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true })
+            zip.file(fname, arr)
+          }
+          done += 1
+          const pct = 50 + (done / total) * 40
+          setProgress(pct)
+          setStatus("正在生成班级文件…", `<b>${done}</b> / ${total} · 当前：${fname}`, "")
+          await new Promise((r) => setTimeout(r, 0))
+        }
+
+        setStatus("正在打包 zip…", `<b>文件数：</b>${total} · <b>将下载：</b>${finalZipName}`, "")
+        setProgress(92)
+        const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } })
+        setProgress(100)
+
+        const a = document.createElement("a")
+        const url = URL.createObjectURL(blob)
+        a.href = url
+        a.download = finalZipName
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 10_000)
+
+        const sumRows = Array.from(groups.values()).reduce((acc, r) => acc + r.length, 0)
+        const ok = sumRows === inputRows
+        setStatus(
+          ok ? "完成：已下载 zip" : "完成：已下载 zip（但行数校验未通过）",
+          `<b>校验：</b>原始 ${inputRows} 行 = 拆分汇总 ${sumRows} 行 · ${ok ? "<span class='ok'>一致</span>" : "<span class='warn'>不一致</span>"}`,
+          ok ? "ok" : "warn"
+        )
+      }
+
+      function bindDrop(){
+        const stop = (e) => { e.preventDefault(); e.stopPropagation() }
+        ;["dragenter","dragover","dragleave","drop"].forEach((evt) => drop.addEventListener(evt, stop))
+        ;["dragenter","dragover"].forEach((evt) => drop.addEventListener(evt, () => drop.classList.add("is-drag")))
+        ;["dragleave","drop"].forEach((evt) => drop.addEventListener(evt, () => drop.classList.remove("is-drag")))
+        drop.addEventListener("drop", async (e) => {
+          const f = e.dataTransfer?.files?.[0]
+          if (!f) return
+          await loadFile(f)
+        })
+      }
+
+      pickBtn.addEventListener("click", () => fileInput.click())
+      fileInput.addEventListener("change", async () => {
+        const f = fileInput.files?.[0]
+        if (!f) return
+        await loadFile(f)
+      })
+      sheetSel.addEventListener("change", async () => {
+        cachedAoa = null
+        await refreshColumns()
+      })
+      classColSel.addEventListener("change", () => {
+        runBtn.disabled = !classColSel.value
+      })
+      resetBtn.addEventListener("click", () => uiReset(false))
+      runBtn.addEventListener("click", async () => {
+        try{
+          runBtn.disabled = true
+          resetBtn.disabled = true
+          await runSplit()
+        }catch(e){
+          setStatus("发生错误", `<span class="err">${String(e?.message || e)}</span>`, "err")
+          setProgress(0)
+        }finally{
+          runBtn.disabled = !classColSel.value
+          resetBtn.disabled = false
+        }
+      })
+
+      uiReset(false)
+      bindDrop()
+      if (!window.XLSX || !window.JSZip || !window.ExcelJS){
+        const miss = []
+        if (!window.XLSX) miss.push("xlsx")
+        if (!window.JSZip) miss.push("jszip")
+        if (!window.ExcelJS) miss.push("exceljs")
+        setStatus(
+          "依赖库加载失败",
+          `<span class="err">未能加载：${miss.join("、")}。</span><div style="margin-top:8px">请检查网络，或用本地服务器打开该页面（http://localhost:...），或把依赖库改为本地引用。</div>`,
+          "err"
+        )
+      }
+      const logoImg = $("logoImg")
+      if (logoImg){
+        logoImg.addEventListener("error", () => logoImg.classList.add("is-hidden"))
+      }
+    </script>
+  </body>
+</html>

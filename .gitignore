@@ -1,0 +1,11 @@
+.DS_Store
+.trae/
+__pycache__/
+*.pyc
+
+*.xlsx
+*.xlsm
+*.xls
+*.zip
+
+*_按班级拆分_*/
