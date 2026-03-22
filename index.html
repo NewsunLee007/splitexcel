@@ -444,6 +444,22 @@
                   <input id="mergeSheetName" type="text" placeholder="如：Sheet1" />
                 </label>
               </div>
+              <div class="row">
+                <label>
+                  去重主键列（可多选）
+                  <select id="mergeKeyColsSel" multiple size="5" disabled>
+                    <option value="">请选择合并文件后加载列</option>
+                  </select>
+                </label>
+                <label>
+                  重复记录处理策略
+                  <select id="mergeConflictMode">
+                    <option value="keep_first">保留首条</option>
+                    <option value="keep_last">保留末条</option>
+                    <option value="merge_non_empty">合并非空字段</option>
+                  </select>
+                </label>
+              </div>
             </div>
 
             <div class="row">
@@ -467,6 +483,16 @@
                 <input id="sourceColName" type="text" placeholder="默认：来源文件" />
               </label>
             </div>
+            <div id="mergeReportRow" class="row hidden">
+              <label>
+                冲突报告文件名（可选）
+                <input id="conflictReportName" type="text" placeholder="默认：冲突报告.xlsx" />
+              </label>
+              <label>
+                冲突报告工作表名（可选）
+                <input id="conflictReportSheet" type="text" placeholder="默认：冲突报告" />
+              </label>
+            </div>
 
             <div id="splitOption1" class="toggle">
               <input id="ffillToggle" type="checkbox" checked />
@@ -483,6 +509,23 @@
             <div id="mergeOption" class="toggle hidden">
               <input id="includeSourceToggle" type="checkbox" checked />
               <span>合并时新增来源文件列</span>
+            </div>
+            <div id="mergeReportOption" class="toggle hidden">
+              <input id="conflictReportToggle" type="checkbox" checked />
+              <span>生成冲突报告.xlsx</span>
+            </div>
+            <div id="mergeSourceModeRow" class="row hidden">
+              <label>
+                来源写入方式
+                <select id="sourceMode">
+                  <option value="file">写入来源文件名</option>
+                  <option value="fixed">写入固定值</option>
+                </select>
+              </label>
+              <label id="sourceFixedWrap" class="hidden">
+                固定来源值
+                <input id="sourceFixedValue" type="text" placeholder="例如：历史归档数据" />
+              </label>
             </div>
 
             <div class="actions">
@@ -558,21 +601,32 @@
       const splitArea = $("splitArea")
       const mergeArea = $("mergeArea")
       const mergeNameRow = $("mergeNameRow")
+      const mergeReportRow = $("mergeReportRow")
+      const mergeSourceModeRow = $("mergeSourceModeRow")
       const splitOption1 = $("splitOption1")
       const splitOption2 = $("splitOption2")
       const mergeOption = $("mergeOption")
+      const mergeReportOption = $("mergeReportOption")
       const sheetSel = $("sheetSel")
       const splitColsSel = $("splitColsSel")
+      const mergeKeyColsSel = $("mergeKeyColsSel")
       const zipName = $("zipName")
       const mergeOutName = $("mergeOutName")
+      const conflictReportName = $("conflictReportName")
+      const conflictReportSheet = $("conflictReportSheet")
       const sheetName = $("sheetName")
       const sourceColName = $("sourceColName")
+      const sourceMode = $("sourceMode")
+      const sourceFixedWrap = $("sourceFixedWrap")
+      const sourceFixedValue = $("sourceFixedValue")
       const mergeSheetMode = $("mergeSheetMode")
       const mergeSheetName = $("mergeSheetName")
+      const mergeConflictMode = $("mergeConflictMode")
       const ffillToggle = $("ffillToggle")
       const unknownToggle = $("unknownToggle")
       const beautifyToggle = $("beautifyToggle")
       const includeSourceToggle = $("includeSourceToggle")
+      const conflictReportToggle = $("conflictReportToggle")
       const statusText = $("statusText")
       const statusExtra = $("statusExtra")
       const barFill = $("barFill")
@@ -714,6 +768,28 @@
         }
       }
 
+      function selectedMergeKeyColumns(){
+        return Array.from(mergeKeyColsSel.selectedOptions).map((o) => o.value).filter(Boolean)
+      }
+
+      function updateSourceModeUI(){
+        const show = mode === "merge" && includeSourceToggle.checked
+        mergeSourceModeRow.classList.toggle("hidden", !show)
+        const fixed = show && sourceMode.value === "fixed"
+        sourceFixedWrap.classList.toggle("hidden", !fixed)
+      }
+
+      function downloadBlob(blob, filename){
+        const a = document.createElement("a")
+        const url = URL.createObjectURL(blob)
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      }
+
       function setMode(nextMode){
         mode = nextMode
         const splitMode = mode === "split"
@@ -722,11 +798,15 @@
         splitArea.classList.toggle("hidden", !splitMode)
         mergeArea.classList.toggle("hidden", splitMode)
         mergeNameRow.classList.toggle("hidden", splitMode)
+        mergeReportRow.classList.toggle("hidden", splitMode)
+        mergeSourceModeRow.classList.toggle("hidden", splitMode || !includeSourceToggle.checked)
         splitOption1.classList.toggle("hidden", !splitMode)
         splitOption2.classList.toggle("hidden", !splitMode)
         mergeOption.classList.toggle("hidden", splitMode)
+        mergeReportOption.classList.toggle("hidden", splitMode)
         setStatus(splitMode ? "拆分模式已就绪" : "合并模式已就绪", "", "")
         setProgress(0)
+        updateSourceModeUI()
         updateRunButtonState()
       }
 
@@ -741,8 +821,10 @@
         }
         sheetSel.innerHTML = `<option value="">请先选择文件</option>`
         splitColsSel.innerHTML = `<option value="">请先选择文件</option>`
+        mergeKeyColsSel.innerHTML = `<option value="">请选择合并文件后加载列</option>`
         sheetSel.disabled = true
         splitColsSel.disabled = true
+        mergeKeyColsSel.disabled = true
         resetBtn.disabled = true
         fileLine.textContent = "拖拽 Excel 到这里"
         fileHint.textContent = "或点击“选择文件”。建议先确认表头行包含拆分字段。"
@@ -754,6 +836,7 @@
         kvSample.innerHTML = ""
         setProgress(0)
         setStatus("等待选择文件", "", "")
+        updateSourceModeUI()
         updateRunButtonState()
       }
 
@@ -896,6 +979,23 @@
         return { file: f.name, sheet: sheetNameValue, header, rows }
       }
 
+      async function refreshMergeKeyColumns(){
+        if (!mergeFiles.length){
+          mergeKeyColsSel.innerHTML = `<option value="">请选择合并文件后加载列</option>`
+          mergeKeyColsSel.disabled = true
+          return
+        }
+        const parsed = await parseWorkbookFile(mergeFiles[0], mergeSheetMode.value, (mergeSheetName.value || "").trim())
+        const headers = (parsed.header || []).map((h) => h || "(空列名)")
+        if (!headers.length){
+          mergeKeyColsSel.innerHTML = `<option value="">未读取到列名</option>`
+          mergeKeyColsSel.disabled = true
+          return
+        }
+        mergeKeyColsSel.innerHTML = headers.map((h) => `<option value="${h}">${h}</option>`).join("")
+        mergeKeyColsSel.disabled = false
+      }
+
       async function runMerge(){
         if (mergeFiles.length < 2) throw new Error("合并模式至少需要选择 2 个文件。")
         setProgress(15)
@@ -903,6 +1003,11 @@
         const targetSheet = (mergeSheetName.value || "").trim()
         const includeSource = includeSourceToggle.checked
         const sourceField = (sourceColName.value || "来源文件").trim() || "来源文件"
+        const sourceWriteMode = sourceMode.value
+        const sourceFixed = (sourceFixedValue.value || "合并导入").trim() || "合并导入"
+        const keyCols = selectedMergeKeyColumns()
+        const conflictMode = mergeConflictMode.value
+        const generateReport = conflictReportToggle.checked
         setStatus("正在读取并合并文件…", `<b>文件数：</b>${mergeFiles.length}`, "")
 
         const parsed = []
@@ -918,19 +1023,134 @@
         if (includeSource && !mergedHeader.includes(sourceField)) mergedHeader.push(sourceField)
 
         const mergedRows = []
+        const mergedSources = []
         for (const p of parsed){
           for (const row of p.rows){
             const map = {}
             for (let i = 0; i < p.header.length; i++) map[p.header[i] || "(空列名)"] = row?.[i]
-            if (includeSource) map[sourceField] = p.file
+            const srcValue = sourceWriteMode === "fixed" ? sourceFixed : p.file
+            if (includeSource) map[sourceField] = srcValue
             mergedRows.push(mergedHeader.map((h) => map[h] ?? ""))
+            mergedSources.push(srcValue)
           }
         }
 
         if (!mergedRows.length) throw new Error("合并后没有数据行。请检查文件或工作表设置。")
+        let dedupRows = mergedRows
+        let dedupRemoved = 0
+        const conflictEntries = []
+        if (keyCols.length){
+          const keyIndexes = keyCols.map((k) => mergedHeader.indexOf(k)).filter((i) => i >= 0)
+          if (keyIndexes.length){
+            const byKey = new Map()
+            for (let rowIdx = 0; rowIdx < mergedRows.length; rowIdx++){
+              const row = mergedRows[rowIdx]
+              const rowSource = mergedSources[rowIdx]
+              const key = keyIndexes.map((i) => String(row[i] ?? "").trim()).join("§")
+              if (!byKey.has(key)){
+                byKey.set(key, { row: row.slice(), source: rowSource })
+                continue
+              }
+              dedupRemoved += 1
+              const prevObj = byKey.get(key)
+              const prev = prevObj.row
+              const prevSource = prevObj.source
+              if (conflictMode === "keep_last"){
+                conflictEntries.push({
+                  key,
+                  strategy: "保留末条",
+                  field: "整行",
+                  keepValue: prev.join(" | "),
+                  currentValue: row.join(" | "),
+                  resultValue: row.join(" | "),
+                  keepSource: prevSource,
+                  currentSource: rowSource,
+                  note: "已用当前记录覆盖之前记录",
+                })
+                byKey.set(key, { row: row.slice(), source: rowSource })
+              }else if (conflictMode === "merge_non_empty"){
+                const merged = prev.slice()
+                let changed = 0
+                for (let i = 0; i < merged.length; i++){
+                  if (keyIndexes.includes(i)) continue
+                  const a = String(merged[i] ?? "").trim()
+                  const b = String(row[i] ?? "").trim()
+                  if (!a && b){
+                    merged[i] = row[i]
+                    changed += 1
+                    conflictEntries.push({
+                      key,
+                      strategy: "合并非空字段",
+                      field: mergedHeader[i],
+                      keepValue: a,
+                      currentValue: b,
+                      resultValue: String(merged[i] ?? ""),
+                      keepSource: prevSource,
+                      currentSource: rowSource,
+                      note: "原值为空，补入当前值",
+                    })
+                  }else if (a && b && a !== b){
+                    merged[i] = `${a} | ${b}`
+                    changed += 1
+                    conflictEntries.push({
+                      key,
+                      strategy: "合并非空字段",
+                      field: mergedHeader[i],
+                      keepValue: a,
+                      currentValue: b,
+                      resultValue: String(merged[i] ?? ""),
+                      keepSource: prevSource,
+                      currentSource: rowSource,
+                      note: "两边非空且不一致，已拼接",
+                    })
+                  }
+                }
+                if (!changed){
+                  conflictEntries.push({
+                    key,
+                    strategy: "合并非空字段",
+                    field: "整行",
+                    keepValue: prev.join(" | "),
+                    currentValue: row.join(" | "),
+                    resultValue: merged.join(" | "),
+                    keepSource: prevSource,
+                    currentSource: rowSource,
+                    note: "重复主键但无可合并字段，保留原记录",
+                  })
+                }
+                byKey.set(key, { row: merged, source: prevSource })
+              }else{
+                conflictEntries.push({
+                  key,
+                  strategy: "保留首条",
+                  field: "整行",
+                  keepValue: prev.join(" | "),
+                  currentValue: row.join(" | "),
+                  resultValue: prev.join(" | "),
+                  keepSource: prevSource,
+                  currentSource: rowSource,
+                  note: "已丢弃当前重复记录",
+                })
+              }
+            }
+            dedupRows = Array.from(byKey.values()).map((x) => x.row)
+          }
+        }else{
+          conflictEntries.push({
+            key: "",
+            strategy: "未执行去重",
+            field: "",
+            keepValue: "",
+            currentValue: "",
+            resultValue: "",
+            keepSource: "",
+            currentSource: "",
+            note: "未选择去重主键列，系统仅执行按行合并",
+          })
+        }
         kvFile.textContent = `${mergeFiles.length} 个文件`
         kvMeta.innerHTML = `<span>工作表策略：<b>${mergeMode === "first" ? "首表" : "指定表名"}</b></span>`
-        kvStats.textContent = `${mergedRows.length} 行 · ${mergedHeader.length} 列`
+        kvStats.textContent = `${dedupRows.length} 行 · ${mergedHeader.length} 列`
         kvSample.innerHTML = parsed.slice(0, 6).map((p) => `<span>${p.file}：<b>${p.rows.length}</b>行</span>`).join("")
 
         const outSheet = (sheetName.value || "Sheet1").trim() || "Sheet1"
@@ -938,22 +1158,31 @@
         const outName = outNameInput.toLowerCase().endsWith(".xlsx") ? outNameInput : (outNameInput ? `${outNameInput}.xlsx` : "合并结果.xlsx")
         let blob
         if (beautifyToggle.checked){
-          blob = new Blob([await buildXlsxWithExcelJS(mergedHeader, mergedRows, outSheet)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+          blob = new Blob([await buildXlsxWithExcelJS(mergedHeader, dedupRows, outSheet)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
         }else{
           const wb = XLSX.utils.book_new()
-          XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([mergedHeader, ...mergedRows]), outSheet)
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([mergedHeader, ...dedupRows]), outSheet)
           blob = new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
         }
         setProgress(100)
-        const a = document.createElement("a")
-        const url = URL.createObjectURL(blob)
-        a.href = url
-        a.download = outName
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 10_000)
-        setStatus("完成：已下载合并文件", `<b>输出：</b>${outName} · <b>总行数：</b>${mergedRows.length}`, "ok")
+        downloadBlob(blob, outName)
+
+        let reportNameText = ""
+        if (generateReport){
+          const reportHeader = ["主键值","处理策略","冲突字段","保留值","当前值","结果值","保留来源","当前来源","说明"]
+          const reportRows = conflictEntries.map((e) => [e.key, e.strategy, e.field, e.keepValue, e.currentValue, e.resultValue, e.keepSource, e.currentSource, e.note])
+          if (!reportRows.length){
+            reportRows.push(["", "无冲突", "", "", "", "", "", "", "未检测到冲突记录"])
+          }
+          const reportSheet = (conflictReportSheet.value || "冲突报告").trim() || "冲突报告"
+          const reportNameInput = (conflictReportName.value || "").trim()
+          const reportName = reportNameInput.toLowerCase().endsWith(".xlsx") ? reportNameInput : (reportNameInput ? `${reportNameInput}.xlsx` : "冲突报告.xlsx")
+          const reportBuffer = await buildXlsxWithExcelJS(reportHeader, reportRows, reportSheet)
+          downloadBlob(new Blob([reportBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), reportName)
+          reportNameText = ` · <b>冲突报告：</b>${reportName}`
+        }
+
+        setStatus("完成：已下载合并文件", `<b>输出：</b>${outName}${reportNameText} · <b>总行数：</b>${dedupRows.length} · <b>去重剔除：</b>${dedupRemoved}`, "ok")
       }
 
       function bindDrop(){
@@ -978,13 +1207,14 @@
         if (f) await loadSplitFile(f)
       })
 
-      mergeFileInput.addEventListener("change", () => {
+      mergeFileInput.addEventListener("change", async () => {
         mergeFiles = Array.from(mergeFileInput.files || [])
         mergeFileLine.textContent = mergeFiles.length ? `已选择 ${mergeFiles.length} 个文件` : "选择多个 Excel 进行合并"
         mergeFileHint.textContent = mergeFiles.length ? mergeFiles.slice(0, 3).map((f) => f.name).join("、") : "支持一次选择多个文件，按行追加合并。"
         kvFile.textContent = mergeFiles.length ? `${mergeFiles.length} 个文件` : "—"
         kvMeta.innerHTML = mergeFiles.length ? `<span>合并输入：<b>${mergeFiles.length}</b>个</span>` : ""
         resetBtn.disabled = mergeFiles.length === 0 && !workbook
+        await refreshMergeKeyColumns()
         updateRunButtonState()
       })
 
@@ -992,6 +1222,10 @@
         cachedAoa = null
         await refreshColumns()
       })
+      mergeSheetMode.addEventListener("change", async () => { await refreshMergeKeyColumns() })
+      mergeSheetName.addEventListener("change", async () => { await refreshMergeKeyColumns() })
+      includeSourceToggle.addEventListener("change", updateSourceModeUI)
+      sourceMode.addEventListener("change", updateSourceModeUI)
       splitColsSel.addEventListener("change", updateRunButtonState)
       resetBtn.addEventListener("click", () => uiReset(false))
 
