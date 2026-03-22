@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>按班级拆分 Excel（浏览器版）</title>
+    <title>Excel 拆分与合并（浏览器版）</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -88,6 +88,7 @@
         gap:8px;
       }
       .title{
+        margin:0;
         font-size:22px;
         font-weight:650;
         line-height:1.15;
@@ -368,14 +369,14 @@
         <div class="brand">
           <div class="brandTop">
             <img id="logoImg" class="logo" src="https://p.ipic.vip/lmzked.jpg" alt="logo" />
-            <div class="title">
-              按班级拆分 Excel
+            <h1 class="title">
+              Excel 拆分与合并
               <span class="chip">浏览器本地处理</span>
-            </div>
+            </h1>
           </div>
           <div class="subtitle">
-            上传一个 Excel，选择“班级”列，浏览器会自动拆成多个 Excel，并打包成 zip 下载。
-            默认只处理第一个工作表；不会把文件上传到服务器。
+            上传一个 Excel 可按指定列拆分；选择多个 Excel 可执行合并并输出冲突报告。
+            所有处理均在浏览器本地完成，不会把文件上传到服务器。
           </div>
         </div>
       </div>
@@ -383,7 +384,7 @@
       <div class="grid">
         <section class="card">
           <div class="hd">
-            <h2>输入与拆分</h2>
+            <h2>输入与处理</h2>
             <div class="pill">支持 .xlsx / .xlsm / .xls</div>
           </div>
           <div class="bd">
@@ -562,7 +563,7 @@
               </div>
               <div class="footer">
                 <span class="dot"></span>
-                若你的“班级”列名不标准，先在“班级列”下拉框中手动选择即可。
+                拆分时可多选字段分组，合并时可按主键去重并导出冲突报告。
                 如遇下载后文件名带小数（例如 901.0），请重试本页最新版（已自动去除整数小数点）。
               </div>
             </div>

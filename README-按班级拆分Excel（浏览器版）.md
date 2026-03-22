@@ -1,4 +1,4 @@
-## 按班级拆分 Excel（浏览器版）
+## Excel 拆分与合并（浏览器版）
 
 打开 [index.html](file:///Users/newsunlee/Desktop/AI%20for%20learning/exam%20analyze/index.html)，上传 Excel 后会在浏览器本地完成：
 - 拆分模式：读取指定工作表，按一个或多个指定列进行拆分
