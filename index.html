@@ -226,7 +226,7 @@
         font-size:12px;
         color:var(--muted);
       }
-      select,input[type="text"]{
+      select,input[type="text"],input[type="number"]{
         width:100%;
         color:rgba(234,240,255,.96);
         background: rgba(7,10,18,.35);
@@ -235,7 +235,7 @@
         padding:10px 10px;
         outline:none;
       }
-      select:focus,input[type="text"]:focus{
+      select:focus,input[type="text"]:focus,input[type="number"]:focus{
         border-color: rgba(120,166,255,.65);
         box-shadow: 0 0 0 3px rgba(120,166,255,.12);
       }
@@ -507,6 +507,20 @@
               <input id="beautifyToggle" type="checkbox" checked />
               <span>导出 Excel 工整化（列宽/表头/边框）</span>
             </div>
+            <div class="row" id="exportFormatRow">
+              <label>
+                导出单元格格式
+                <select id="exportCellType">
+                  <option value="auto">自动（保持原始类型）</option>
+                  <option value="text">文本</option>
+                  <option value="number">数字</option>
+                </select>
+              </label>
+              <label id="decimalPlacesWrap" class="hidden">
+                数字保留小数位
+                <input id="numberDecimalPlaces" type="number" min="0" max="10" step="1" value="2" />
+              </label>
+            </div>
             <div id="mergeOption" class="toggle hidden">
               <input id="includeSourceToggle" type="checkbox" checked />
               <span>合并时新增来源文件列</span>
@@ -623,6 +637,9 @@
       const mergeSheetMode = $("mergeSheetMode")
       const mergeSheetName = $("mergeSheetName")
       const mergeConflictMode = $("mergeConflictMode")
+      const exportCellType = $("exportCellType")
+      const decimalPlacesWrap = $("decimalPlacesWrap")
+      const numberDecimalPlaces = $("numberDecimalPlaces")
       const ffillToggle = $("ffillToggle")
       const unknownToggle = $("unknownToggle")
       const beautifyToggle = $("beautifyToggle")
@@ -720,6 +737,49 @@
         return s
       }
 
+      function getExportSettings(){
+        const cellType = ["auto","text","number"].includes(exportCellType.value) ? exportCellType.value : "auto"
+        const dpRaw = parseInt(numberDecimalPlaces.value || "2", 10)
+        const decimalPlaces = Number.isFinite(dpRaw) ? Math.max(0, Math.min(10, dpRaw)) : 2
+        numberDecimalPlaces.value = String(decimalPlaces)
+        return { cellType, decimalPlaces }
+      }
+
+      function exportSettingsLabel(settings){
+        if (settings.cellType === "text") return "文本"
+        if (settings.cellType === "number") return `数字（${settings.decimalPlaces}位小数）`
+        return "自动"
+      }
+
+      function toNumberValue(value){
+        if (typeof value === "number" && Number.isFinite(value)) return value
+        if (typeof value === "string"){
+          const s = value.trim()
+          if (!s) return null
+          const n = Number(s.replace(/,/g, ""))
+          if (Number.isFinite(n)) return n
+        }
+        return null
+      }
+
+      function formatExportCellValue(value, settings){
+        if (settings.cellType === "text"){
+          return { value: value === null || value === undefined ? "" : String(value), numFmt: null }
+        }
+        if (settings.cellType === "number"){
+          const n = toNumberValue(value)
+          if (n === null) return { value: value === null || value === undefined ? "" : String(value), numFmt: null }
+          const numFmt = settings.decimalPlaces > 0 ? `0.${"0".repeat(settings.decimalPlaces)}` : "0"
+          return { value: n, numFmt }
+        }
+        return { value: value ?? "", numFmt: null }
+      }
+
+      function updateExportFormatUI(){
+        const showDecimal = exportCellType.value === "number"
+        decimalPlacesWrap.classList.toggle("hidden", !showDecimal)
+      }
+
       function toSafeFilename(name, used){
         let s = String(name ?? "").trim()
         if (!s) s = "未分组"
@@ -733,25 +793,42 @@
         return n === 1 ? base : `${base} (${n})`
       }
 
-      async function buildXlsxWithExcelJS(header, rows, sheetNameValue){
+      async function buildXlsxWithExcelJS(header, rows, sheetNameValue, options = {}){
         if (!window.ExcelJS) throw new Error("ExcelJS 未加载，无法导出带样式的 Excel。")
+        const beautify = options.beautify !== false
+        const exportSettings = options.exportSettings || getExportSettings()
+        const colCount = Math.max(header?.length || 0, ...rows.map((r) => r?.length || 0))
         const wb = new ExcelJS.Workbook()
         const ws = wb.addWorksheet(sheetNameValue || "Sheet1")
         ws.columns = calcColWidths(header, rows, 56).map((w) => ({ width: w }))
-        ws.addRow(header.map((v) => v ?? "")).height = 20
-        for (const r of rows) ws.addRow((r || []).map((v) => v ?? ""))
-        const thin = { style: "thin" }
-        const border = { top: thin, left: thin, bottom: thin, right: thin }
-        const align = { vertical: "middle", horizontal: "center", wrapText: false }
-        ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-          row.height = rowNumber === 1 ? 20 : 18
-          row.eachCell({ includeEmpty: true }, (cell) => {
-            cell.alignment = align
-            cell.border = border
-            cell.font = { color: { argb: "FF000000" }, bold: rowNumber === 1 }
-            if (rowNumber === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF3FF" } }
+        const head = ws.addRow(new Array(colCount).fill(""))
+        head.height = 20
+        for (let i = 0; i < colCount; i++){
+          head.getCell(i + 1).value = header?.[i] ?? ""
+        }
+        for (const r of rows){
+          const dataRow = ws.addRow(new Array(colCount).fill(""))
+          for (let i = 0; i < colCount; i++){
+            const formatted = formatExportCellValue(r?.[i], exportSettings)
+            const cell = dataRow.getCell(i + 1)
+            cell.value = formatted.value
+            if (formatted.numFmt) cell.numFmt = formatted.numFmt
+          }
+        }
+        if (beautify){
+          const thin = { style: "thin" }
+          const border = { top: thin, left: thin, bottom: thin, right: thin }
+          const align = { vertical: "middle", horizontal: "center", wrapText: false }
+          ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            row.height = rowNumber === 1 ? 20 : 18
+            row.eachCell({ includeEmpty: true }, (cell) => {
+              cell.alignment = align
+              cell.border = border
+              cell.font = { color: { argb: "FF000000" }, bold: rowNumber === 1 }
+              if (rowNumber === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF3FF" } }
+            })
           })
-        })
+        }
         return wb.xlsx.writeBuffer()
       }
 
@@ -935,19 +1012,14 @@
         const outSheet = (sheetName.value || "Sheet1").trim() || "Sheet1"
         const zipOut = (zipName.value || "").trim()
         const finalZipName = zipOut.toLowerCase().endsWith(".zip") ? zipOut : (zipOut ? `${zipOut}.zip` : "按字段拆分结果.zip")
+        const exportSettings = getExportSettings()
 
         let done = 0
-        setStatus("正在生成拆分文件…", `<b>工作表：</b>${sheetTitle} · <b>拆分字段：</b>${selectedCols.join(" + ")}`, "")
+        setStatus("正在生成拆分文件…", `<b>工作表：</b>${sheetTitle} · <b>拆分字段：</b>${selectedCols.join(" + ")} · <b>单元格格式：</b>${exportSettingsLabel(exportSettings)}`, "")
         setProgress(50)
         for (const [k, rows] of groups.entries()){
           const fname = `${toSafeFilename(k, used)}.xlsx`
-          if (beautifyToggle.checked){
-            zip.file(fname, await buildXlsxWithExcelJS(header, rows, outSheet))
-          }else{
-            const wb = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...rows]), outSheet)
-            zip.file(fname, XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true }))
-          }
+          zip.file(fname, await buildXlsxWithExcelJS(header, rows, outSheet, { beautify: beautifyToggle.checked, exportSettings }))
           done += 1
           setProgress(50 + (done / groups.size) * 40)
           await new Promise((r) => setTimeout(r, 0))
@@ -1009,7 +1081,8 @@
         const keyCols = selectedMergeKeyColumns()
         const conflictMode = mergeConflictMode.value
         const generateReport = conflictReportToggle.checked
-        setStatus("正在读取并合并文件…", `<b>文件数：</b>${mergeFiles.length}`, "")
+        const exportSettings = getExportSettings()
+        setStatus("正在读取并合并文件…", `<b>文件数：</b>${mergeFiles.length} · <b>单元格格式：</b>${exportSettingsLabel(exportSettings)}`, "")
 
         const parsed = []
         for (let i = 0; i < mergeFiles.length; i++){
@@ -1157,14 +1230,7 @@
         const outSheet = (sheetName.value || "Sheet1").trim() || "Sheet1"
         const outNameInput = (mergeOutName.value || "").trim()
         const outName = outNameInput.toLowerCase().endsWith(".xlsx") ? outNameInput : (outNameInput ? `${outNameInput}.xlsx` : "合并结果.xlsx")
-        let blob
-        if (beautifyToggle.checked){
-          blob = new Blob([await buildXlsxWithExcelJS(mergedHeader, dedupRows, outSheet)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
-        }else{
-          const wb = XLSX.utils.book_new()
-          XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([mergedHeader, ...dedupRows]), outSheet)
-          blob = new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
-        }
+        const blob = new Blob([await buildXlsxWithExcelJS(mergedHeader, dedupRows, outSheet, { beautify: beautifyToggle.checked, exportSettings })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
         setProgress(100)
         downloadBlob(blob, outName)
 
@@ -1227,6 +1293,8 @@
       mergeSheetName.addEventListener("change", async () => { await refreshMergeKeyColumns() })
       includeSourceToggle.addEventListener("change", updateSourceModeUI)
       sourceMode.addEventListener("change", updateSourceModeUI)
+      exportCellType.addEventListener("change", updateExportFormatUI)
+      numberDecimalPlaces.addEventListener("change", () => { getExportSettings() })
       splitColsSel.addEventListener("change", updateRunButtonState)
       resetBtn.addEventListener("click", () => uiReset(false))
 
@@ -1248,6 +1316,7 @@
       uiReset(false)
       bindDrop()
       setMode("split")
+      updateExportFormatUI()
       if (!window.XLSX || !window.JSZip || !window.ExcelJS){
         const miss = []
         if (!window.XLSX) miss.push("xlsx")
